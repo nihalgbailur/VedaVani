@@ -57,7 +57,7 @@ st.subheader("💬 Chat with VedaVani AI")
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-user_input = st.text_input("📝 Ask a question about your uploaded content:")
+user_input = st.text_input("📝 Ask any question:")
 
 if st.button("🤖 Ask AI"):
     if user_input:
