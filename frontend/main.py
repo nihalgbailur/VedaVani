@@ -6,7 +6,7 @@ st.set_page_config(page_title="VedaVani - AI Research Chat & Podcast", layout="w
 st.title("📜 VedaVani - AI Research Chat & Podcast")
 
 # Upload PDF or Enter URL
-st.subheader("📥 Upload Research or Enter URL")
+st.subheader("📥 Upload Research Paper or Enter URL")
 input_url = st.text_input("🔗 Paste Website URL (Optional)")
 uploaded_file = st.file_uploader("📂 Upload PDF", type=["pdf"])
 
@@ -17,24 +17,39 @@ show_thinking = st.checkbox("🤔 Show AI Thinking", value=True)
 language_options = {"English": "en", "Kannada": "kn", "Hindi": "hi", "Telugu": "te"}
 selected_language = st.selectbox("🌍 Select Summary Language", list(language_options.keys()))
 
-# Generate Podcast
+# Generate Podcast Button
 if st.button("🎙️ Generate Podcast"):
-    payload = {
-        "url": input_url,
-        "show_thinking": show_thinking,
-        "language": language_options[selected_language]
-    }
-    
-    response = requests.post("http://127.0.0.1:5001/generate", json=payload)
-    data = response.json()
+    with st.spinner("Processing... 🎧"):
+        payload = {
+            "url": input_url,
+            "show_thinking": show_thinking,
+            "language": language_options[selected_language]
+        }
+        
+        # Handle both URL and PDF file uploads
+        if uploaded_file:
+            files = {"file": (uploaded_file.name, uploaded_file, "application/pdf")}
+            response = requests.post("http://127.0.0.1:5001/generate", files=files, data=payload)
+        else:
+            response = requests.post("http://127.0.0.1:5001/generate", json=payload)
 
-    if "response" in data:
-        st.subheader("🗣️ AI-Generated Discussion:")
-        st.write(data["response"] if show_thinking else data["summary_only"])
+        # Process Response
+        try:
+            data = response.json()
+            if "response" in data:
+                st.subheader("🗣️ AI-Generated Discussion:")
+                st.write(data["response"] if show_thinking else data["summary_only"])
 
-        st.subheader("🎧 Listen to AI-Generated Podcast:")
-        st.audio("http://127.0.0.1:5001/get_audio")
-        st.download_button("⬇️ Download Podcast", "http://127.0.0.1:5001/get_audio", file_name="VedaVani_Podcast.mp3")
+                st.subheader("🎧 Listen to AI-Generated Podcast:")
+                st.audio("http://127.0.0.1:5001/get_audio")
+                st.download_button("⬇️ Download Podcast", "http://127.0.0.1:5001/get_audio", file_name="VedaVani_Podcast.mp3")
+            elif "error" in data:
+                st.error(f"⚠️ Error: {data['error']}")
+            else:
+                st.error("⚠️ Unknown error occurred.")
+        except requests.exceptions.JSONDecodeError:
+            st.error("⚠️ Server Error: Received non-JSON response.")
+            st.write(response.text)  # Debugging
 
 # Chat Section
 st.subheader("💬 Chat with VedaVani AI")
