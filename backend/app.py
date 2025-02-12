@@ -7,6 +7,7 @@ import gtts
 import os
 import PyPDF2
 import re
+from deep_translator import GoogleTranslator
 
 app = Flask(__name__)
 CORS(app)
@@ -59,10 +60,11 @@ def generate():
     if request.content_type == "application/json":
         data = request.json
         url = data.get("url", "")
-
+        language = data.get("language", "en")
+        
         if url:
             extracted_text, error_message = extract_text_from_url(url)
-
+    
     if "file" in request.files:
         pdf_file = request.files["file"]
         pdf_text, pdf_error = extract_text_from_pdf(pdf_file)
@@ -100,12 +102,21 @@ def generate():
             final_response += ai_response + "\n\n"  # Store full AI response for UI
             final_podcast_text += remove_thinking_process(ai_response) + "\n\n"  # Remove <think> parts for podcast
 
+        # Translate text if needed
+        if language != "en":
+            final_podcast_text = GoogleTranslator(source='auto', target=language).translate(final_podcast_text)
+            final_response = GoogleTranslator(source='auto', target=language).translate(final_response)
+
         # Convert only the structured summary into speech
-        tts = gtts.gTTS(final_podcast_text, lang="en")
+        tts = gtts.gTTS(final_podcast_text, lang=language)
         audio_file = "output.mp3"
         tts.save(audio_file)
 
-        return jsonify({"response": final_response, "audio_url": "/get_audio"})
+        return jsonify({
+            "response": final_response,  # Full AI response with reasoning
+            "summary_only": final_podcast_text,  # AI response without reasoning
+            "audio_url": "/get_audio"
+        })
     except Exception as e:
         return jsonify({"error": f"AI processing failed: {str(e)}"}), 500
 
