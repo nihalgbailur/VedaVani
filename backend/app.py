@@ -12,8 +12,6 @@ from deep_translator import GoogleTranslator
 app = Flask(__name__)
 CORS(app)
 
-chat_history = []  # Store chat history per session
-
 # Extract text from a webpage URL
 def extract_text_from_url(url):
     try:
@@ -50,8 +48,8 @@ def split_text_into_chunks(text, chunk_size=5000, overlap=500):
     start = 0
     while start < len(text):
         end = start + chunk_size
-        chunks.append(text[start:end])  # Store the chunk
-        start = end - overlap  # Move the window with overlap
+        chunks.append(text[start:end])
+        start = end - overlap
     return chunks
 
 @app.route('/generate', methods=['POST'])
@@ -59,22 +57,20 @@ def generate():
     extracted_text = ""
     error_message = None
 
-    if request.content_type and "application/json" in request.content_type:
-        data = request.get_json(silent=True) or {}
-        url = data.get("url", "")
-        show_thinking = data.get("show_thinking", True)
-        language = data.get("language", "en")
+    data = request.get_json(silent=True) or {}
+    url = data.get("url", "")
+    show_thinking = data.get("show_thinking", True)
+    language = data.get("language", "en")
 
-        if url:
-            extracted_text, error_message = extract_text_from_url(url)
+    if url:
+        extracted_text, error_message = extract_text_from_url(url)
 
     if "file" in request.files:
-        pdf_file = request.files.get("file")
-        if pdf_file:
-            pdf_text, pdf_error = extract_text_from_pdf(pdf_file)
-            extracted_text += pdf_text if pdf_text else ""
-            if pdf_error:
-                error_message = pdf_error
+        pdf_file = request.files["file"]
+        pdf_text, pdf_error = extract_text_from_pdf(pdf_file)
+        extracted_text += pdf_text if pdf_text else ""
+        if pdf_error:
+            error_message = pdf_error
 
     if error_message:
         return jsonify({"error": error_message}), 400
@@ -84,17 +80,15 @@ def generate():
 
     try:
         text_chunks = split_text_into_chunks(extracted_text)
-
         final_response = ""
         final_podcast_text = ""
 
         for chunk in text_chunks:
             prompt = f"""
-            Summarize the following text **without adding extra reasoning, assumptions, or personal analysis**.
-            Keep it **concise, factual, and structured like a discussion**.
+            Act as a podcast host and a guest discussing this research.
+            Provide a structured discussion with back-and-forth dialogue.
 
-            Here is the extracted text:
-
+            Text:
             {chunk}
             """
 
@@ -109,31 +103,32 @@ def generate():
             final_response = GoogleTranslator(source='auto', target=language).translate(final_response)
 
         tts = gtts.gTTS(final_podcast_text, lang=language)
-        audio_file = "output.mp3"
-        tts.save(audio_file)
+        tts.save("output.mp3")
 
-        return jsonify({"response": final_response, "summary_only": final_podcast_text, "audio_url": "/get_audio"}), 200
+        return jsonify({
+            "response": final_response,
+            "summary_only": final_podcast_text,
+            "audio_url": "/get_audio"
+        })
     except Exception as e:
         return jsonify({"error": f"AI processing failed: {str(e)}"}), 500
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global chat_history
-
-    data = request.json
+    data = request.get_json()
     user_message = data.get("message", "")
+    history = data.get("history", [])  # Retrieve previous chat history
 
-    if not user_message:
-        return jsonify({"error": "No input message provided"}), 400
+    messages = [{"role": "system", "content": "You are an AI assistant for research discussions."}]
+    
+    for role, message in history:
+        messages.append({"role": "user" if role == "You" else "assistant", "content": message})
+    
+    messages.append({"role": "user", "content": user_message})
 
-    chat_history.append({"role": "user", "content": user_message})
+    chat_response = ollama.chat(model='deepseek-r1:1.5b', messages=messages)
 
-    response = ollama.chat(model='deepseek-r1:1.5b', messages=chat_history)
-    ai_message = response["message"]["content"]
-
-    chat_history.append({"role": "assistant", "content": ai_message})
-
-    return jsonify({"response": ai_message, "chat_history": chat_history}), 200
+    return jsonify({"response": chat_response['message']['content']})
 
 @app.route('/get_audio', methods=['GET'])
 def get_audio():
