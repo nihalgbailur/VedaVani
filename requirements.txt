@@ -1,0 +1,9 @@
+flask
+flask-cors
+ollama
+requests
+beautifulsoup4
+gtts
+PyPDF2
+re
+DeepTranslator
