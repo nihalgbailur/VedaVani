@@ -57,20 +57,22 @@ def generate():
     extracted_text = ""
     error_message = None
 
-    if request.content_type == "application/json":
-        data = request.json
+    if request.content_type and "application/json" in request.content_type:
+        data = request.get_json(silent=True) or {}  # Prevents NoneType error
         url = data.get("url", "")
-        language = data.get("language", "en")
-        
+        show_thinking = data.get("show_thinking", True)
+        language = data.get("language", "en")  # Default language: English
+
         if url:
             extracted_text, error_message = extract_text_from_url(url)
-    
+
     if "file" in request.files:
-        pdf_file = request.files["file"]
-        pdf_text, pdf_error = extract_text_from_pdf(pdf_file)
-        extracted_text += pdf_text if pdf_text else ""
-        if pdf_error:
-            error_message = pdf_error
+        pdf_file = request.files.get("file")  # Safely retrieve file
+        if pdf_file:
+            pdf_text, pdf_error = extract_text_from_pdf(pdf_file)
+            extracted_text += pdf_text if pdf_text else ""
+            if pdf_error:
+                error_message = pdf_error
 
     if error_message:
         return jsonify({"error": error_message}), 400
@@ -97,7 +99,10 @@ def generate():
             """
 
             response = ollama.chat(model='deepseek-r1:1.5b', messages=[{"role": "user", "content": prompt}])
-            ai_response = response['message']['content']
+            if response and 'message' in response and 'content' in response['message']:
+                ai_response = response['message']['content']
+            else:
+                return jsonify({"error": "Invalid AI response format"}), 500
 
             final_response += ai_response + "\n\n"  # Store full AI response for UI
             final_podcast_text += remove_thinking_process(ai_response) + "\n\n"  # Remove <think> parts for podcast
@@ -116,7 +121,7 @@ def generate():
             "response": final_response,  # Full AI response with reasoning
             "summary_only": final_podcast_text,  # AI response without reasoning
             "audio_url": "/get_audio"
-        })
+        }), 200
     except Exception as e:
         return jsonify({"error": f"AI processing failed: {str(e)}"}), 500
 
