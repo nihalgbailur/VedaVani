@@ -35,6 +35,9 @@ venv\Scripts\activate  # Windows
 
 ```sh
 pip install -r requirements.txt
+              OR
+pip install --upgrade pip setuptools wheel
+pip install streamlit flask flask-cors ollama beautifulsoup4 gtts PyPDF2 deep-translator requests pyarrow
 ```
 
 ### **4️⃣ Run the Backend (Flask API)**
