@@ -12,7 +12,10 @@ with tab1:
     input_url = st.text_input("🔗 Paste Website URL (Optional)")
     uploaded_file = st.file_uploader("📂 Upload PDF", type=["pdf"])
 
-    show_thinking = st.checkbox("🤔 Show AI Thinking", value=False)  # New Toggle
+    # ✅ New Checkboxes
+    show_thinking = st.checkbox("🤔 Show AI Thinking", value=False)
+    show_conversation = st.checkbox("🗨️ Show Full Conversation", value=True)
+
     language_options = {"English": "en", "Kannada": "kn", "Hindi": "hi", "Telugu": "te"}
     selected_language = st.selectbox("🌍 Select Summary Language", list(language_options.keys()))
 
@@ -20,7 +23,8 @@ with tab1:
         with st.spinner("Processing Podcast... 🎧"):
             payload = {
                 "url": input_url,
-                "show_thinking": show_thinking,  # Pass toggle state to backend
+                "show_thinking": show_thinking,
+                "show_conversation": show_conversation,  # Pass to backend
                 "language": language_options[selected_language]
             }
 
@@ -34,20 +38,24 @@ with tab1:
                 data = response.json()
                 if "response" in data:
                     st.success("✅ Podcast Generated Successfully!")
-                    st.subheader("🗨️ AI-Generated Conversation:")
 
-                    # Show "Thinking" parts only if toggle is ON
-                    if show_thinking:
-                        st.text_area("🧠 AI Thinking Process", value=data["thinking_part"], height=150)
+                    # ✅ Show AI Thinking if checked
+                    if show_thinking and "thinking_part" in data:
+                        st.subheader("🧠 AI Thinking Process")
+                        st.text_area("AI Thought Process:", value=data["thinking_part"], height=150)
+                    
 
-                    # Show structured dialogue
-                    for line in data["response"].split("\n"):
-                        if line.startswith("Host:"):
-                            st.markdown(f"💙 **Host:** {line.replace('Host:', '')}")
-                        elif line.startswith("Guest:"):
-                            st.markdown(f"💚 **Guest:** {line.replace('Guest:', '')}")
+                    # ✅ Show Conversation if checkbox is enabled
+                    if show_conversation and "response" in data:
+                        st.subheader("🗨️ AI-Generated Host/Guest Conversation:")
+                        conversation_lines = data["response"].split("\n")
+                        for line in conversation_lines:
+                            if line.startswith("Host:"):
+                                st.markdown(f"💙 **Host:** {line.replace('Host:', '')}")
+                            elif line.startswith("Guest:"):
+                                 st.markdown(f"💚 **Guest:** {line.replace('Guest:', '')}")                            
 
-                    # Podcast Player and Download
+                    # 🎧 Podcast Player
                     st.subheader("🎧 Listen to Podcast:")
                     st.audio("http://127.0.0.1:5001/get_audio")
                     st.download_button(
