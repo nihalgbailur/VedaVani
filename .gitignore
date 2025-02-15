@@ -2,3 +2,5 @@
 venv/
 # macOS system files
 .DS_Store
+backend/output.mp3
+.vscode/settings.json

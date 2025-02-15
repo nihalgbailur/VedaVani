@@ -96,7 +96,7 @@ def generate():
             """
 
             response = ollama.chat(
-                model='deepseek-r1:1.5b',
+                model='deepseek-r1:7b',
                 messages=[{"role": "user", "content": prompt}]
             )
             ai_response = response['message']['content']
@@ -145,7 +145,7 @@ def chat():
     messages.append({"role": "user", "content": user_message})
 
     chat_response = ollama.chat(
-        model='deepseek-r1:1.5b',
+        model='deepseek-r1:7b',
         messages=messages
     )
 
