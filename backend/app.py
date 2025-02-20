@@ -138,18 +138,39 @@ def chat():
     user_message = data.get("message", "")
     history = data.get("history", [])
 
-    messages = [{"role": "system", "content": "You are an AI assistant for research discussions."}]
-    for role, message in history:
-        messages.append({"role": "user" if role == "You" else "assistant", "content": message})
+    # Improved system prompt
+    system_prompt = """You are VedaVani AI, an intelligent research assistant specialized in academic discussions. 
+    Provide clear, concise, and informative responses while maintaining a friendly tone. 
+    When discussing research topics, include relevant examples and explanations."""
 
+    # Format chat history for the model
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    # Add history with proper formatting
+    for role, message in history[-5:]:  # Keep last 5 messages for context
+        messages.append({
+            "role": "user" if role == "You" else "assistant",
+            "content": message
+        })
+
+    # Add current message
     messages.append({"role": "user", "content": user_message})
 
-    chat_response = ollama.chat(
-        model='deepseek-r1:7b',
-        messages=messages
-    )
-
-    return jsonify({"response": chat_response['message']['content']})
+    try:
+        chat_response = ollama.chat(
+            model='deepseek-r1:7b',
+            messages=messages
+        )
+        
+        return jsonify({
+            "response": chat_response['message']['content'],
+            "status": "success"
+        })
+    except Exception as e:
+        return jsonify({
+            "error": f"Chat processing failed: {str(e)}",
+            "status": "error"
+        }), 500
 
 @app.route('/get_audio', methods=['GET'])
 def get_audio():
